@@ -7,7 +7,8 @@ function(doc) {
     }
   }
   function emitUserMonthly(doc, user, start, end) {
-    while (start <= end) {
+    var totalEmitted = 0;
+    while (totalEmitted++ < 36 && start <= end) {
       var d = new Date(start);
       emit([user, d.getFullYear(), d.getMonth()], doc);
       if (d.getMonth() == 11) {

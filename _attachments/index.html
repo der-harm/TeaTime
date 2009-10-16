@@ -136,6 +136,8 @@ Other Calendars to View:
   var drawtimeout;
   var ignoreViewEvent = true;
   var user_profile_doc = {};
+  var currently_loading_events = false;
+  var load_events_again = false;
   function trim(str) {
     return str.replace(/^\s*/, "").replace(/\s*$/, "");
   }
@@ -207,11 +209,13 @@ Other Calendars to View:
         right: 'month,basicWeek,basicDay'
       },
       events: function(start, end, callback) {
+        if (currently_loading_events) {
+          load_events_again = true;
+          return;
+        }
+        currently_loading_events = true;
         app.db.info({success: function(db_info) {
-          if (c_xhr) {
-            c_xhr.onreadystatechange = null;
-            c_xhr.abort();
-          }
+          
           c_xhr = jQuery.ajaxSettings.xhr();
           c_xhr.open("GET", app.db.uri+"_changes?feed=longpoll&since="+db_info.update_seq, true);
           c_xhr.send("");
@@ -219,7 +223,7 @@ Other Calendars to View:
               if(c_xhr.readyState == 4) {
                 setTimeout(function() {
                 $('#calendar').fullCalendar('refetchEvents');
-              }, 100);
+              }, 10);
             }
           };
           var user_name = trim($("#user").val());
@@ -243,6 +247,13 @@ Other Calendars to View:
           function add_user_cals(cals, uniqueEvents) {
             if (cals.length == 0) {
               callback(uniqueEvents);
+              if (load_events_again) {
+                setTimeout(function() {
+                  $('#calendar').fullCalendar('refetchEvents');
+                }, 10);
+              }
+              load_events_again = false;
+              currently_loading_events = false;
               return;
             }
             var name = cals.pop();
@@ -343,6 +354,7 @@ Other Calendars to View:
     
     function init_othercals(cals) {
       $("#othercals").val(cals.join(","));
+      othercals = cals;
       // TODO display tags and calendars
     };
         
@@ -360,6 +372,9 @@ Other Calendars to View:
 			      tagged: tagged
 			    });
 			  }
+      }
+      options.blur = function(input) {
+          save_profile();
       }
       $("#othercals").tagbox(options)
     }
