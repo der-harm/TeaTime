@@ -49,3 +49,16 @@ form {
   padding:10px;
   background:#ddd;
 }
+
+#event label {
+  display: inline-block;
+  width: 100px;
+}
+
+#event .label_indent {
+  margin-left: 105px;
+}
+
+#event .full_width {
+  width: 225px;
+}
