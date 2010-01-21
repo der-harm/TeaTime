@@ -71,7 +71,7 @@
 <script src="/_utils/script/sha1.js"></script>
 <script src="/_utils/script/jquery.couch.js"></script>
 <script src="vendor/couchapp/jquery.couchapp.js"></script>
-<script src="vendor/couchapp/jquery.couchapp.login.js"></script>
+<script src="vendor/couchapp/jquery.couchapp.account.js"></script>
 <script type='text/javascript'>
 
   $(document).ready(function() {
@@ -81,7 +81,7 @@
        $("#enddate").dateEntry();
        $("#endtime").timeEntry();
        
-       $.CouchApp.app.login.widget('#login_form', {});
+       $('#login_form').couchappAccountWidget();
   });
   
 </script>
@@ -240,32 +240,33 @@ Other Calendars to View:
               }, 10);
             }
           };
-          $.CouchApp.app.login.session({
-            loggedIn: function(response) {
+          $.couch.session({
+            success: function(response) {
               var user_name = response.userCtx.name;
-              var allcals = [];
-              for (var i=0; i < other_cals.length; i++) {
-                var calname = other_cals[i];
-                allcals.push(calname);
-                var mod = (i % class_colors.length);
-                cal_colors[calname] = class_colors[mod];
-              };
-              allcals.push(user_name);
-              if (user_name) {
-                cal_colors[user_name] = "plain";            
+              if(user_name) {
+                var allcals = [];
+                for (var i=0; i < other_cals.length; i++) {
+                  var calname = other_cals[i];
+                  allcals.push(calname);
+                  var mod = (i % class_colors.length);
+                  cal_colors[calname] = class_colors[mod];
+                };
+                allcals.push(user_name);
+                if (user_name) {
+                  cal_colors[user_name] = "plain";            
+                }
+                // apply cal colors to tagboxes in order
+                var k = 0;
+                $(".tagbox span.tag").each(function() {
+                  $(this).addClass(class_colors[k]);
+                  k++;
+                });
+                add_user_cals(allcals, []);
+              } else {
+                add_user_cals([], []);
+                load_events_again = false;
+                currently_loading_events = false;
               }
-              // apply cal colors to tagboxes in order
-              var k = 0;
-              $(".tagbox span.tag").each(function() {
-                $(this).addClass(class_colors[k]);
-                k++;
-              });
-              add_user_cals(allcals, []);
-            },
-            loggedOut: function() {
-              add_user_cals([], []);
-              load_events_again = false;
-              currently_loading_events = false;
             }
           });
           
@@ -324,8 +325,8 @@ Other Calendars to View:
        current_event.end = 
         new Date(current_event.start.getTime() + (1000 * 60 * 30));
        refresh_current_event_ui();
-       $.CouchApp.app.login.session({
-         loggedIn: function(response) {
+       $.couch.session({
+         success: function(response) {
            $("#hosts").val(response.userCtx.name);
          }
        });
@@ -349,37 +350,35 @@ Other Calendars to View:
           $('#calendar').fullCalendar('gotoDate', year, month - 1);
       }});
           
-    $("#login_form").bind('session-changed', function() {
-      $.CouchApp.app.login.session({
-        loggedIn: function(response) {
-          app.db.openDoc("cal-profile-" + response.userCtx.name, {
-            success: function(doc) {
-              user_profile_doc = doc;
-              if (doc.othercals && doc.othercals.join) {
-                // add other cals to display
-                init_othercals(doc.othercals);
-              } else {
-                // nothing to display
-                $("#othercals").val("");
-              }
-              init_tagbox()
-              $('#calendar').fullCalendar('refetchEvents');
-            },
-            error: function(){              
-              // nothing to display
-              $("#othercals").val("");
-              init_tagbox()
-              $('#calendar').fullCalendar('refetchEvents');
-            }
-          });
+    $("#login_form").bind('org.couchapp.account.loggedIn', function(event, response) {
+      app.db.openDoc("cal-profile-" + response.userCtx.name, {
+        success: function(doc) {
+          user_profile_doc = doc;
+          if (doc.othercals && doc.othercals.join) {
+            // add other cals to display
+            init_othercals(doc.othercals);
+          } else {
+            // nothing to display
+            $("#othercals").val("");
+          }
+          init_tagbox()
+          $('#calendar').fullCalendar('refetchEvents');
         },
-        loggedOut: function() {
+        error: function(){              
           // nothing to display
           $("#othercals").val("");
           init_tagbox()
           $('#calendar').fullCalendar('refetchEvents');
         }
-      })
+      
+      });
+    });
+    
+    $("#login_form").bind('org.couchapp.account.loggedOut', function() {
+      // nothing to display
+      $("#othercals").val("");
+      init_tagbox()
+      $('#calendar').fullCalendar('refetchEvents');
     });
     
     function init_othercals(cals) {
@@ -418,15 +417,16 @@ Other Calendars to View:
     });
     
     function save_profile() {
-      $.CouchApp.app.login.session({
-        loggedIn: function(response) {
+      $.couch.session({
+        success: function(response) {
           var user = response.userCtx.name;
-          user_profile_doc._id = "cal-profile-" + user;
-          user_profile_doc.othercals = other_cals;
-          app.db.saveDoc(user_profile_doc, {
-              success: function() {},
-              error: function(){}
-          });
+          if(user) {
+            user_profile_doc._id = "cal-profile-" + user;
+            user_profile_doc.othercals = other_cals;
+            app.db.saveDoc(user_profile_doc, {
+                error: function() {}
+            });
+          }
         }
       });
     };
